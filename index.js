@@ -73,11 +73,6 @@ http
 			const isMaster = body && body.ref === 'refs/heads/master';
 			const baseDir = path.join(directory, body.project.path_with_namespace);
 			const logFile = path.join(directory, 'logs', body.checkout_sha + '.log');
-			current_file = body.checkout_sha;
-
-			setTimeout(() => {
-				current_file = undefined;
-			}, 5 * 60 * 1000); // 5 min max build time.
 
 			if (fs.existsSync(logFile)) {
 				response.writeHead(409);
@@ -91,6 +86,7 @@ http
 				return;
 			}
 
+			current_file = body.checkout_sha;
 			const out = fs.openSync(logFile, 'a');
 			const err = fs.openSync(logFile, 'a');
 
@@ -130,7 +126,7 @@ http
 							fs.writeSync(err, '\nbuild failedxxxxxxxxx...\n');
 						}
 						fs.writeSync(out, '\nbuild success....\n');
-						current_file = null;
+						// current_file = null;
 					});
 				} catch (error) {
 					fs.writeSync(err, JSON.stringify(error));
@@ -143,7 +139,7 @@ http
 			}
 		});
 	})
-	.listen(process.env.PORT || 7070);
+	.listen(process.env.PORT || 9090);
 
 
 

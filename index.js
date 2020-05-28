@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-
+const CMD = require('./cmds');
 const SECRET = process.env.SECRET || 'MY_GIT_WEBHOOK_SECRET';
 /*
 /* ############################################################/
@@ -26,7 +26,7 @@ http
 
 			if (!fs.existsSync(filePath)) {
 				response.writeHead(200);
-				response.end('ready');
+				response.end('ready..' + filePath);
 				return;
 			}
 
@@ -70,14 +70,14 @@ http
 
 		request.on('end', function () {
 			const body = JSON.parse(requestBody);
+			const name = body.project.path_with_namespace;
 			const isMaster = body && body.ref === 'refs/heads/master';
-			const baseDir = path.join(directory, body.project.path_with_namespace);
+			const baseDir = path.join(directory, name);
 			const logFile = path.join(directory, 'logs', body.checkout_sha + '.log');
-			current_file = body.checkout_sha;
+			const cmd = CMD[name] ? CMD[name].cmd : ["yarn", "build"];
+			const cwd = CMD[name] ? CMD[name].cwd : ".";
 
-			setTimeout(() => {
-				current_file = undefined;
-			}, 5 * 60 * 1000); // 5 min max build time.
+			current_file = body.checkout_sha;
 
 			if (fs.existsSync(logFile)) {
 				response.writeHead(409);
@@ -100,7 +100,8 @@ http
 				/* ### RESET ANY CHANGES ON SERVER AND PULL LATEST VERSION ####/
 				/* ############################################################/
 				*/
-				console.log('building ' + baseDir + '...');
+
+				fs.writeSync(out, 'building ' + baseDir + '...\n');
 				try {
 					execSync('git checkout master -f && git reset master --hard && git pull', {
 						cwd: baseDir,
@@ -117,9 +118,10 @@ http
 					/* ### EDIT THIS LINE IF YOU WANT TO CHANGE BUILD COMMAND #####/
 					/* ############################################################/
 					*/
-					const child = spawn('yarn', ['build'], {
+					fs.writeSync(out, cwd + ': running ' + cmd + '...\n');
+					const child = spawn(cmd[0], cmd.slice(1), {
 						detached: true,
-						cwd: baseDir,
+						cwd,
 						timeout: 60 * 5 * 1000,
 						stdio: ['ignore', out, err]
 					});
@@ -127,10 +129,9 @@ http
 					child.on('exit', (exitCode) => {
 						if (parseInt(exitCode) !== 0) {
 							//Handle non-zero exit
-							fs.writeSync(err, '\nbuild failedxxxxxxxxx...\n');
+							fs.writeSync(err, '\nxxxx..ERROR[' + exitCode + ']..xxxxx...\nbuild failed...\n');
 						}
 						fs.writeSync(out, '\nbuild success....\n');
-						current_file = null;
 					});
 				} catch (error) {
 					fs.writeSync(err, JSON.stringify(error));
@@ -143,7 +144,7 @@ http
 			}
 		});
 	})
-	.listen(process.env.PORT || 7070);
+	.listen(process.env.PORT || 9090);
 
 
 

@@ -91,6 +91,7 @@ http
 				return;
 			}
 
+			current_file = body.checkout_sha;
 			const out = fs.openSync(logFile, 'a');
 			const err = fs.openSync(logFile, 'a');
 
